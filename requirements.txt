@@ -1,0 +1,17 @@
+# Server and client shared dependencies
+fastapi==0.104.1
+uvicorn==0.23.2
+aiortc==1.5.0
+websockets==11.0.3
+numpy==1.24.3
+av==10.0.0
+
+# Server-specific dependencies
+torch>=2.0.0
+transformers==4.36.0
+accelerate==0.23.0
+qwen-omni-utils[decord]>=0.1.0
+flash-attn==2.4.2
+
+# Client-specific dependencies
+pyaudio==0.2.13
