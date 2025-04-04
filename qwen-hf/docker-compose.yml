@@ -22,7 +22,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "443:443"
+      - "80:80"
     volumes:
       - ./nginx:/etc/nginx/conf.d
     depends_on:
