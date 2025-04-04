@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from aiohttp import web
+from aiohttp_cors import setup as setup_cors, ResourceOptions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -66,10 +67,8 @@ class WhisperServer:
                 model=model,
                 tokenizer=processor.tokenizer,
                 feature_extractor=processor.feature_extractor,
-                max_new_tokens=128,
                 chunk_length_s=30,
                 batch_size=16,
-                return_timestamps=True,
                 torch_dtype=self.torch_dtype,
                 device=self.device,
             )
@@ -107,8 +106,7 @@ class WhisperServer:
             result = await asyncio.to_thread(
                 self.transcription_pipeline,
                 {"array": audio_data, "sampling_rate": 16000},
-                generate_kwargs=generate_kwargs,
-                return_timestamps=True
+                generate_kwargs=generate_kwargs
             )
             
             process_time = time.time() - start_time
@@ -151,7 +149,7 @@ async def handle_transcribe(request):
             audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
             
             # Perform transcription
-            result = await app["whisper_server"].transcribe(audio_np, language)
+            result = await request.app["whisper_server"].transcribe(audio_np, language)
             
             # Return the result
             return web.Response(
@@ -174,10 +172,11 @@ async def handle_transcribe(request):
         )
         
 async def handle_status(request):
+    global whisper_server
     """Return server status information"""
     device_info = {
-        "device": app["whisper_server"].device,
-        "torch_dtype": str(app["whisper_server"].torch_dtype),
+        "device": request.app["whisper_server"].device,
+        "torch_dtype": str(request.app["whisper_server"].torch_dtype),
         "cuda_available": torch.cuda.is_available(),
     }
     
@@ -191,9 +190,9 @@ async def handle_status(request):
         
     status = {
         "status": "running",
-        "model_id": app["whisper_server"].model_id,
+        "model_id": request.app["whisper_server"].model_id,
         "device_info": device_info,
-        "uptime": time.time() - app["start_time"],
+        "uptime": time.time() - request.app["start_time"],
     }
     
     return web.Response(
@@ -215,16 +214,29 @@ async def on_shutdown(app):
         torch.cuda.empty_cache()
         
 def main():
+    global whisper_server
     # Create the web application
     app = web.Application()
     
     # Set up startup and shutdown handlers
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
+
+    cors = setup_cors(app, defaults={
+        "*": ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+            allow_methods=["GET", "POST", "OPTIONS"]
+        )
+    })
     
     # Set up routes
-    app.router.add_post("/transcribe", handle_transcribe)
-    app.router.add_get("/status", handle_status)
+    route = app.router.add_post("/transcribe", handle_transcribe)
+    cors.add(route)
+
+    route = app.router.add_get("/status", handle_status)
+    cors.add(route)
     
     # Run the server
     web.run_app(app, host="0.0.0.0", port=8080)
