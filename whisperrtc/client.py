@@ -148,6 +148,7 @@ class TranscriptionProcessor:
     def _send_audio_for_transcription(self, audio_bytes):
         """Send audio data to the server for transcription"""
         try:
+            logging.info(f"Sending audio chunk of size: {len(audio_bytes)} bytes")
             # Convert audio bytes to base64
             audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
             
@@ -168,6 +169,7 @@ class TranscriptionProcessor:
             if response.status_code == 200:
                 # Process the transcription result
                 result = response.json()
+                logging.info(f"Full transcription response: {result}")
                 logging.info(f"Transcription received: {result.get('text', '')}")
                 
                 # Add to results list for the UI
@@ -474,7 +476,7 @@ async def start_recording(request):
         )
         
     try:
-        app["audio_recorder"].start()
+        request.app["audio_recorder"].start()
         is_recording = True
         return web.Response(
             text=json.dumps({"status": "started"}),
@@ -500,7 +502,7 @@ async def stop_recording(request):
         )
         
     try:
-        app["audio_recorder"].stop()
+        request.app["audio_recorder"].stop()
         is_recording = False
         return web.Response(
             text=json.dumps({"status": "stopped"}),

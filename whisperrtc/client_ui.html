@@ -1,0 +1,258 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper Transcription Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        #transcriptBox {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        .transcriptItem {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .transcriptItem p {
+            margin: 5px 0;
+        }
+        .transcriptItem .timestamp {
+            font-size: 0.8em;
+            color: #666;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #serverUrl {
+            flex-grow: 1;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Whisper Transcription Client</h1>
+    
+    <div class="controls">
+        <input type="text" id="serverUrl" placeholder="Server URL (e.g., http://192.168.1.100:8080)" value="">
+        <button id="connectButton">Connect</button>
+    </div>
+    
+    <div>
+        <button id="startButton" disabled>Start Recording</button>
+        <button id="stopButton" disabled>Stop Recording</button>
+    </div>
+    
+    <div id="status">
+        Not connected to server
+    </div>
+    
+    <div id="transcriptBox">
+        <h3>Transcripts:</h3>
+        <div id="transcriptContent"></div>
+    </div>
+    
+    <script>
+        // DOM elements
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusDiv = document.getElementById('status');
+        const transcriptContent = document.getElementById('transcriptContent');
+        const serverUrl = document.getElementById('serverUrl');
+        const connectButton = document.getElementById('connectButton');
+        
+        // Initialize default server URL from localStorage
+        serverUrl.value = localStorage.getItem('serverUrl') || 'http://192.168.1.100:8080';
+        
+        // Set up event listeners
+        startButton.addEventListener('click', startRecording);
+        stopButton.addEventListener('click', stopRecording);
+        connectButton.addEventListener('click', checkServerConnection);
+        
+        // Global state
+        let isConnected = false;
+        let isRecording = false;
+        let pollingInterval = null;
+        
+        // Function to check server connection
+        async function checkServerConnection() {
+            const url = serverUrl.value.trim();
+            if (!url) {
+                alert('Please enter a valid server URL');
+                return;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('serverUrl', url);
+            
+            try {
+                statusDiv.textContent = 'Connecting to server...';
+                
+                const response = await fetch(`${url}/status`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    isConnected = true;
+                    startButton.disabled = false;
+                    statusDiv.textContent = `Connected to server running ${data.model_id} on ${data.device_info.device} (${data.device_info.cuda_device_name || 'CPU'})`;
+                    
+                    // Start polling for transcripts
+                    startPolling();
+                } else {
+                    isConnected = false;
+                    startButton.disabled = true;
+                    statusDiv.textContent = `Failed to connect to server: ${response.status} ${response.statusText}`;
+                }
+            } catch (e) {
+                isConnected = false;
+                startButton.disabled = true;
+                statusDiv.textContent = `Error connecting to server: ${e.message}`;
+            }
+        }
+        
+        // Function to start recording
+        async function startRecording() {
+            if (!isConnected) {
+                alert('Not connected to server');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/start_recording', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    isRecording = true;
+                    startButton.disabled = true;
+                    stopButton.disabled = false;
+                    statusDiv.textContent += ' - Recording';
+                } else {
+                    statusDiv.textContent = `Failed to start recording: ${response.status} ${response.statusText}`;
+                }
+            } catch (e) {
+                statusDiv.textContent = `Error starting recording: ${e.message}`;
+            }
+        }
+        
+        // Function to stop recording
+        async function stopRecording() {
+            try {
+                const response = await fetch('/stop_recording', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    isRecording = false;
+                    startButton.disabled = false;
+                    stopButton.disabled = true;
+                    statusDiv.textContent = statusDiv.textContent.replace(' - Recording', '');
+                } else {
+                    statusDiv.textContent = `Failed to stop recording: ${response.status} ${response.statusText}`;
+                }
+            } catch (e) {
+                statusDiv.textContent = `Error stopping recording: ${e.message}`;
+            }
+        }
+        
+        // Function to poll for transcripts
+        function startPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            pollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/transcripts');
+                    if (response.ok) {
+                        const data = await response.json();
+                        updateTranscriptDisplay(data);
+                    }
+                } catch (e) {
+                    console.error('Error polling for transcripts:', e);
+                }
+            }, 500);
+        }
+        
+        // Function to update the transcript display
+        function updateTranscriptDisplay(transcripts) {
+            transcriptContent.innerHTML = '';
+            
+            if (transcripts.length === 0) {
+                transcriptContent.innerHTML = '<p>No transcripts yet</p>';
+                return;
+            }
+            
+            // Sort by timestamp (newest first)
+            transcripts.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Display each transcript
+            transcripts.forEach(transcript => {
+                const item = document.createElement('div');
+                item.className = 'transcriptItem';
+                
+                const text = document.createElement('p');
+                text.textContent = transcript.text || '[No text]';
+                
+                const timestamp = document.createElement('p');
+                timestamp.className = 'timestamp';
+                const date = new Date(transcript.timestamp * 1000);
+                timestamp.textContent = `${date.toLocaleTimeString()} (processed in ${transcript.process_time.toFixed(2)}s)`;
+                
+                item.appendChild(text);
+                item.appendChild(timestamp);
+                transcriptContent.appendChild(item);
+            });
+        }
+        
+        // Try to connect to the default server on page load
+        window.addEventListener('load', checkServerConnection);
+    </script>
+</body>
+</html>
+            
