@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import router
 from app.models.qwen_omni_wrapper import QwenOmniWrapper
+from app.dependencies import model_instance
 
 # Configure logging
 logging.basicConfig(
@@ -21,21 +22,21 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development; restrict in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Model instance (initialized on startup)
-model_instance = None
 
 @app.on_event("startup")
 async def startup_event():
     global model_instance
     try:
         logger.info("Initializing Qwen 2.5 Omni model...")
+        from app.dependencies import model_instance as deps_model_instance
+        global model_instance
         model_instance = QwenOmniWrapper()
+        deps_model_instance = model_instance
         logger.info("Model initialization complete")
     except Exception as e:
         logger.error(f"Failed to initialize model: {str(e)}")
@@ -43,6 +44,7 @@ async def startup_event():
 
 @app.get("/health")
 async def health_check():
+    from app.dependencies import model_instance
     if model_instance is not None and model_instance.is_ready:
         return {"status": "healthy", "model_loaded": True}
     return {"status": "unhealthy", "model_loaded": False}

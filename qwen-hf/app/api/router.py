@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form
 from pydantic import BaseModel
-from app.main import model_instance
+from app.dependencies import model_instance
 import base64
 import os
 import tempfile
