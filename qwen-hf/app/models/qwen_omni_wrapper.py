@@ -1,7 +1,7 @@
 import logging
 import torch
 from typing import Dict, Any, Optional, Tuple, List, Union
-from transformers import Qwen2Processor, Qwen2TokenizerFast
+from transformers import Qwen2_5OmniProcessor, Qwen2TokenizerFast
 from transformers import Qwen2_5OmniModel
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class QwenOmniWrapper:
         logger.info(f"Loading model {model_name} on {device}...")
         try:
             # Initialize tokenizer and processor
-            self.processor = Qwen2Processor.from_pretrained(model_name)
+            self.processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
             self.tokenizer = Qwen2TokenizerFast.from_pretrained(model_name) 
             
             # Load model with audio output if enabled
