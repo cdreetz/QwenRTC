@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qwen 2.5 Omni Test Client</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .status {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+      .connected {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .loading {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .media-input {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .media-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .preview-item {
+        position: relative;
+        width: 150px;
+        height: 150px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .preview-item .remove {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        text-align: center;
+        line-height: 24px;
+        cursor: pointer;
+      }
+      .response {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 20px;
+        background-color: #f9f9f9;
+        min-height: 100px;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0069d9;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      select {
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+      }
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .audio-player {
+        width: 100%;
+        margin-top: 10px;
+      }
+      .metrics {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #6c757d;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Qwen 2.5 Omni Test Client</h1>
+
+      <div id="status" class="status disconnected">Connecting to server...</div>
+
+      <div id="model-info" style="display: none">
+        <h3>Model Information</h3>
+        <pre id="model-info-json"></pre>
+      </div>
+
+      <div id="input-section">
+        <h3>Input</h3>
+        <textarea
+          id="text-input"
+          placeholder="Enter your text prompt here..."
+        ></textarea>
+
+        <div class="media-input">
+          <div>
+            <label for="image-upload">Images:</label>
+            <input type="file" id="image-upload" accept="image/*" multiple />
+          </div>
+          <div>
+            <label for="audio-upload">Audio:</label>
+            <input type="file" id="audio-upload" accept="audio/*" multiple />
+          </div>
+          <div>
+            <label for="video-upload">Video:</label>
+            <input type="file" id="video-upload" accept="video/*" multiple />
+          </div>
+        </div>
+
+        <div class="media-preview" id="media-preview">
+          <!-- Media previews will be added here -->
+        </div>
+
+        <div class="controls">
+          <button id="send-button" disabled>Send</button>
+
+          <div class="toggle">
+            <label for="audio-output">Audio Output:</label>
+            <input type="checkbox" id="audio-output" checked />
+          </div>
+
+          <div>
+            <label for="speaker-select">Speaker:</label>
+            <select id="speaker-select">
+              <option value="">Loading speakers...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="response-section">
+        <h3>Response</h3>
+        <div class="response" id="text-response">
+          Responses will appear here...
+        </div>
+
+        <div id="audio-response" style="display: none">
+          <h4>Audio Response</h4>
+          <audio id="audio-player" controls class="audio-player"></audio>
+        </div>
+
+        <div class="metrics" id="metrics">
+          <!-- Performance metrics will be displayed here -->
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE_URL = "http://localhost:8000";
+      let modelInfo = null;
+      let mediaFiles = {
+        images: [],
+        audios: [],
+        videos: [],
+      };
+
+      // Check server connection and load model info
+      async function checkConnection() {
+        const statusElement = document.getElementById("status");
+        const sendButton = document.getElementById("send-button");
+
+        try {
+          // Check health endpoint
+          const healthResponse = await fetch(`${API_BASE_URL}/health`);
+          const healthData = await healthResponse.json();
+
+          if (healthData.status === "healthy" && healthData.model_loaded) {
+            statusElement.className = "status connected";
+            statusElement.textContent =
+              "Connected to server. Model loaded successfully.";
+            sendButton.disabled = false;
+
+            // Get model info
+            await loadModelInfo();
+          } else {
+            statusElement.className = "status loading";
+            statusElement.textContent =
+              "Server is up, but model is still loading...";
+            sendButton.disabled = true;
+
+            // Check again in 5 seconds
+            setTimeout(checkConnection, 5000);
+          }
+        } catch (error) {
+          statusElement.className = "status disconnected";
+          statusElement.textContent = `Server connection error: ${error.message}. Retrying in 5 seconds...`;
+          sendButton.disabled = true;
+
+          // Try again in 5 seconds
+          setTimeout(checkConnection, 5000);
+        }
+      }
+
+      // Load model information
+      async function loadModelInfo() {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/model/info`);
+          modelInfo = await response.json();
+
+          // Display model info
+          const modelInfoElement = document.getElementById("model-info");
+          const modelInfoJson = document.getElementById("model-info-json");
+          modelInfoElement.style.display = "block";
+          modelInfoJson.textContent = JSON.stringify(modelInfo, null, 2);
+
+          // Populate speaker dropdown
+          const speakerSelect = document.getElementById("speaker-select");
+          speakerSelect.innerHTML = "";
+
+          if (
+            modelInfo.available_speakers &&
+            modelInfo.available_speakers.length > 0
+          ) {
+            modelInfo.available_speakers.forEach((speaker) => {
+              const option = document.createElement("option");
+              option.value = speaker;
+              option.textContent = speaker;
+              speakerSelect.appendChild(option);
+            });
+          } else {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No speakers available";
+            speakerSelect.appendChild(option);
+          }
+
+          // Set audio output checkbox based on model
+          const audioOutputCheckbox = document.getElementById("audio-output");
+          audioOutputCheckbox.checked = modelInfo.audio_output_enabled;
+          audioOutputCheckbox.disabled = !modelInfo.audio_output_enabled;
+        } catch (error) {
+          console.error("Error loading model info:", error);
+        }
+      }
+
+      // Handle file uploads for images
+      document
+        .getElementById("image-upload")
+        .addEventListener("change", (event) => {
+          handleFileUpload(event.target.files, "images");
+        });
+
+      // Handle file uploads for audio
+      document
+        .getElementById("audio-upload")
+        .addEventListener("change", (event) => {
+          handleFileUpload(event.target.files, "audios");
+        });
+
+      // Handle file uploads for video
+      document
+        .getElementById("video-upload")
+        .addEventListener("change", (event) => {
+          handleFileUpload(event.target.files, "videos");
+        });
+
+      // Process uploaded files and create previews
+      function handleFileUpload(files, type) {
+        if (!files || files.length === 0) return;
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          mediaFiles[type].push(file);
+
+          // Create preview element
+          const previewContainer = document.createElement("div");
+          previewContainer.className = "preview-item";
+          previewContainer.dataset.type = type;
+          previewContainer.dataset.index = mediaFiles[type].length - 1;
+
+          // Add preview content based on type
+          if (type === "images") {
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+            previewContainer.appendChild(img);
+          } else if (type === "audios") {
+            const audioElement = document.createElement("audio");
+            audioElement.src = URL.createObjectURL(file);
+            audioElement.controls = true;
+            audioElement.style.width = "100%";
+            audioElement.style.height = "100%";
+            previewContainer.appendChild(audioElement);
+          } else if (type === "videos") {
+            const videoElement = document.createElement("video");
+            videoElement.src = URL.createObjectURL(file);
+            videoElement.controls = true;
+            videoElement.style.width = "100%";
+            videoElement.style.height = "100%";
+            previewContainer.appendChild(videoElement);
+          }
+
+          // Add remove button
+          const removeButton = document.createElement("div");
+          removeButton.className = "remove";
+          removeButton.textContent = "×";
+          removeButton.addEventListener("click", () =>
+            removeMedia(previewContainer),
+          );
+          previewContainer.appendChild(removeButton);
+
+          // Add to preview area
+          document
+            .getElementById("media-preview")
+            .appendChild(previewContainer);
+        }
+      }
+
+      // Remove media item
+      function removeMedia(element) {
+        const type = element.dataset.type;
+        const index = parseInt(element.dataset.index, 10);
+
+        if (!isNaN(index) && index >= 0 && index < mediaFiles[type].length) {
+          // Remove file from array
+          mediaFiles[type].splice(index, 1);
+
+          // Remove element from DOM
+          element.remove();
+
+          // Update indices of remaining elements
+          const remainingElements = document.querySelectorAll(
+            `.preview-item[data-type="${type}"]`,
+          );
+          for (let i = 0; i < remainingElements.length; i++) {
+            if (parseInt(remainingElements[i].dataset.index, 10) > index) {
+              remainingElements[i].dataset.index =
+                parseInt(remainingElements[i].dataset.index, 10) - 1;
+            }
+          }
+        }
+      }
+
+      // Send request to server
+      document
+        .getElementById("send-button")
+        .addEventListener("click", async () => {
+          const textInput = document.getElementById("text-input").value.trim();
+          const returnAudio = document.getElementById("audio-output").checked;
+          const speaker = document.getElementById("speaker-select").value;
+          const responseElement = document.getElementById("text-response");
+          const audioResponse = document.getElementById("audio-response");
+          const audioPlayer = document.getElementById("audio-player");
+          const metricsElement = document.getElementById("metrics");
+
+          if (!textInput) {
+            alert("Please enter some text before sending.");
+            return;
+          }
+
+          // Update UI state
+          const sendButton = document.getElementById("send-button");
+          sendButton.disabled = true;
+          sendButton.textContent = "Sending...";
+          responseElement.textContent = "Waiting for response...";
+          audioResponse.style.display = "none";
+          metricsElement.textContent = "";
+
+          // Start timing
+          const startTime = Date.now();
+
+          try {
+            if (hasMediaFiles()) {
+              // Use multimodal endpoint if we have media files
+              await sendMultimodalRequest(textInput, returnAudio, speaker);
+            } else {
+              // Use text-only endpoint if no media files
+              await sendTextRequest(textInput, returnAudio, speaker);
+            }
+          } catch (error) {
+            responseElement.textContent = `Error: ${error.message}`;
+            console.error("Request error:", error);
+          } finally {
+            // Update UI state
+            sendButton.disabled = false;
+            sendButton.textContent = "Send";
+
+            // Calculate and display metrics
+            const endTime = Date.now();
+            const duration = (endTime - startTime) / 1000;
+            metricsElement.textContent = `Response time: ${duration.toFixed(2)} seconds`;
+          }
+        });
+
+      // Check if we have any media files
+      function hasMediaFiles() {
+        return (
+          mediaFiles.images.length > 0 ||
+          mediaFiles.audios.length > 0 ||
+          mediaFiles.videos.length > 0
+        );
+      }
+
+      // Send text-only request
+      async function sendTextRequest(text, returnAudio, speaker) {
+        const responseElement = document.getElementById("text-response");
+        const audioResponse = document.getElementById("audio-response");
+        const audioPlayer = document.getElementById("audio-player");
+
+        const requestData = {
+          text: text,
+          speaker: speaker,
+          return_audio: returnAudio,
+          max_new_tokens: 1024,
+        };
+
+        const response = await fetch(`${API_BASE_URL}/api/inference/text`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestData),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Server error: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        const data = await response.json();
+        displayResponse(data, responseElement, audioResponse, audioPlayer);
+      }
+
+      // Send multimodal request
+      async function sendMultimodalRequest(text, returnAudio, speaker) {
+        const responseElement = document.getElementById("text-response");
+        const audioResponse = document.getElementById("audio-response");
+        const audioPlayer = document.getElementById("audio-player");
+
+        // Create form data
+        const formData = new FormData();
+        formData.append("text", text);
+        if (speaker) formData.append("speaker", speaker);
+        formData.append("return_audio", returnAudio);
+        formData.append("max_new_tokens", 1024);
+
+        // Add media files
+        mediaFiles.images.forEach((file) => formData.append("images", file));
+        mediaFiles.audios.forEach((file) => formData.append("audios", file));
+        mediaFiles.videos.forEach((file) => formData.append("videos", file));
+
+        // Send request
+        const response = await fetch(
+          `${API_BASE_URL}/api/inference/multimodal`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Server error: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        const data = await response.json();
+        displayResponse(data, responseElement, audioResponse, audioPlayer);
+      }
+
+      // Display response data
+      function displayResponse(data, textElement, audioElement, audioPlayer) {
+        // Display text response
+        textElement.textContent = data.text || "No text response received.";
+
+        // Handle audio response if available
+        if (data.has_audio && data.audio_base64) {
+          const audioSrc = `data:audio/wav;base64,${data.audio_base64}`;
+          audioPlayer.src = audioSrc;
+          audioElement.style.display = "block";
+
+          // Automatically play audio
+          audioPlayer.play().catch((error) => {
+            console.warn(
+              "Auto-play failed. This may be due to browser policies:",
+              error,
+            );
+          });
+        } else {
+          audioElement.style.display = "none";
+          audioPlayer.src = "";
+        }
+      }
+
+      // Initialize on page load
+      window.addEventListener("load", () => {
+        checkConnection();
+      });
+    </script>
+  </body>
+</html>
