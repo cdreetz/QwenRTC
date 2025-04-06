@@ -548,6 +548,7 @@
         if (speaker) formData.append("speaker", speaker);
         formData.append("return_audio", returnAudio);
         formData.append("max_new_tokens", 1024);
+        if (systemPrompt) formData.append("system_prompt", systemPrompt);
 
         // Add media files
         mediaFiles.images.forEach((file) => formData.append("images", file));

@@ -74,7 +74,7 @@ class QwenOmniWrapper:
         speaker: str = None,
         return_audio: bool = None,
         max_new_tokens: int = 1024,
-        system_prompt: str = "You are Qwen, a helpful AI assistant, capable of perceiving auditory and visual inputs, as well as generating text and speech."
+        system_prompt: str = "You are Qwen, a helpful AI assistant, capable of perceiving auditory and visual inputs, as well as generating text and speech.",
     ) -> Dict[str, Any]:
         """
         Generate a response from the model for a given input.
@@ -105,15 +105,15 @@ class QwenOmniWrapper:
             },
         ]
 
-        if images:
+        if images and len(images) > 0:
             for image_path in images:
                 conversation[1]["content"].append({"type": "image", "image": image_path})
 
-        if videos:
+        if videos and len(videos) > 0:
             for video_path in videos:
                 conversation[1]["content"].append({"type": "video", "video": video_path})
 
-        if audios:
+        if audios and len(audios) > 0:
             for audio_path in audios:
                 conversation[1]["content"].append({"type": "audio", "audio": audio_path})
 
