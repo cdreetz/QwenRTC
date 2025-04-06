@@ -74,6 +74,7 @@ class QwenOmniWrapper:
         speaker: str = None,
         return_audio: bool = None,
         max_new_tokens: int = 1024,
+        system_prompt: str = "You are Qwen, a helpful AI assistant, capable of perceiving auditory and visual inputs, as well as generating text and speech."
     ) -> Dict[str, Any]:
         """
         Generate a response from the model for a given input.

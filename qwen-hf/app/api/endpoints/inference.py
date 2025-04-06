@@ -26,7 +26,7 @@ class InferenceRequest(BaseModel):
     speaker: Optional[str] = "Ethan"  # Default speaker
     return_audio: Optional[bool] = True
     max_new_tokens: Optional[int] = 1024
-    system_prompt: Optional[str] = "You are a helpful assistant."
+    system_prompt: Optional[str] = None
 
 async def save_uploaded_file(file: UploadFile) -> str:
     """Save an uploaded file to the uploads directory and return the file path"""
