@@ -35,7 +35,7 @@ class QwenOmniWrapper:
         try:
             # Initialize tokenizer and processor
             self.processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
-            self.tokenizer = Qwen2TokenizerFast.from_pretrained(model_name) 
+            #self.tokenizer = Qwen2TokenizerFast.from_pretrained(model_name) 
             
             # Load model with audio output if enabled
             self.model = Qwen2_5OmniModel.from_pretrained(
@@ -125,7 +125,7 @@ class QwenOmniWrapper:
                 
                 # Convert tensors to Python-native types
                 response = {
-                    "text": self.tokenizer.decode(generated_text[0], skip_special_tokens=True),
+                    "text": self.processor.batch_decode(generated_text, skip_special_tokens=True),
                     "has_audio": True,
                     "audio_sample_rate": 24000,  # Default sample rate for Qwen Omni
                     "audio_waveform": audio_waveform.detach().cpu().numpy().tolist()
@@ -138,7 +138,7 @@ class QwenOmniWrapper:
                 )
                 
                 response = {
-                    "text": self.tokenizer.decode(generated_text[0], skip_special_tokens=True),
+                    "text": self.processor.batch_decode(generated_text, skip_special_tokens=True),
                     "has_audio": False
                 }
                 

@@ -30,13 +30,17 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    global model_instance
     try:
         logger.info("Initializing Qwen 2.5 Omni model...")
         from app.dependencies import model_instance as deps_model_instance
         global model_instance
-        model_instance = QwenOmniWrapper()
-        deps_model_instance = model_instance
+
+        new_model = QwenOmniWrapper()
+        globals()['model_instance'] = new_model
+
+        import app.dependencies
+        app.dependencies.model_instance = new_model
+
         logger.info("Model initialization complete")
     except Exception as e:
         logger.error(f"Failed to initialize model: {str(e)}")
@@ -48,6 +52,10 @@ async def health_check():
     if model_instance is not None and model_instance.is_ready:
         return {"status": "healthy", "model_loaded": True}
     return {"status": "unhealthy", "model_loaded": False}
+
+@app.get("/live")
+async def live_check():
+    return {"status": "healthy"}
 
 # Include API router
 app.include_router(router, prefix="/api")
