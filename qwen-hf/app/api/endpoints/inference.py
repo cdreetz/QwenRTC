@@ -2,7 +2,7 @@
 import os
 import uuid
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, UploadFile, File, Form
 from pydantic import BaseModel
 from app.dependencies import get_model_instance
@@ -16,7 +16,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 router = APIRouter()
 
 class InferenceResponse(BaseModel):
-    text: str
+    text: Union[str, List[str]]
     has_audio: bool
     audio_sample_rate: Optional[int] = None
     audio_waveform: Optional[List[float]] = None

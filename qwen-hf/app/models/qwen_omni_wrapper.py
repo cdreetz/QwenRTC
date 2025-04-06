@@ -122,10 +122,13 @@ class QwenOmniWrapper:
                     use_audio_in_video=False,  # Default to False for simplicity
                     return_audio=True
                 )
+                decoded_text = self.processor.batch_decode(generated_text, skip_special_tokens=True)
+                text_response = decoded_text[0] if isinstance(decoded_text, list) else decoded_text
+
                 
                 # Convert tensors to Python-native types
                 response = {
-                    "text": self.processor.batch_decode(generated_text, skip_special_tokens=True),
+                    "text": text_response,
                     "has_audio": True,
                     "audio_sample_rate": 24000,  # Default sample rate for Qwen Omni
                     "audio_waveform": audio_waveform.detach().cpu().numpy().tolist()
@@ -136,9 +139,12 @@ class QwenOmniWrapper:
                     thinker_max_new_tokens=max_new_tokens,
                     return_audio=False
                 )
+
+                decoded_text = self.processor.batch_decode(generated_text, skip_special_tokens=True)
+                text_response = decoded_text[0] if isinstance(decoded_text, list) else decoded_text
                 
                 response = {
-                    "text": self.processor.batch_decode(generated_text, skip_special_tokens=True),
+                    "text": text_response,
                     "has_audio": False
                 }
                 
