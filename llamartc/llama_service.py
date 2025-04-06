@@ -8,7 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 logging.basicConfig(level=logging.INFO)
 
 class LlamaService:
-    def __init__(self, model_id="meta-llama/Llama-3-8b-chat-hf", device=None):
+    def __init__(self, model_id="meta-llama/Llama-3.2-3B-Instruct", device=None):
         self.model_id = model_id
         
         # Determine the device
@@ -45,8 +45,6 @@ class LlamaService:
                 "text-generation",
                 model=model,
                 tokenizer=tokenizer,
-                torch_dtype=self.torch_dtype,
-                device=self.device,
             )
             
             logging.info(f"LLaMA model loaded in {time.time() - start_time:.2f} seconds")

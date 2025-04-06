@@ -15,8 +15,9 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: all
               capabilities: [gpu]
+    ipc: host
     restart: unless-stopped
 
   nginx:

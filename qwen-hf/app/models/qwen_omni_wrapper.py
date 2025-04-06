@@ -42,6 +42,7 @@ class QwenOmniWrapper:
                 model_name,
                 torch_dtype=torch.float16 if device == "cuda" else torch.float32,
                 device_map="auto" if device == "cuda" else None,
+                attn_implementation="flash_attention_2",
             )
             
             if device == "cpu":

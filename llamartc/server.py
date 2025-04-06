@@ -288,7 +288,7 @@ async def on_startup(app):
     # Initialize Whisper
     app["whisper_server"] = WhisperServer(model_id="openai/whisper-large-v3-turbo")
     # Initialize LLaMA
-    app["llama_service"] = LlamaService(model_id="meta-llama/Llama-3-8b-chat-hf")
+    app["llama_service"] = LlamaService(model_id="meta-llama/Llama-3.2-3B-Instruct")
     
 async def on_shutdown(app):
     """Clean up resources on server shutdown"""
