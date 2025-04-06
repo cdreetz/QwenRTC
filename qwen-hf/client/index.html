@@ -196,7 +196,7 @@
     </div>
 
     <script>
-      const API_BASE_URL = "http://100.113.228.8:80";
+      const API_BASE_URL = "http://100.100.147.56:80";
       let modelInfo = null;
       let mediaFiles = {
         images: [],
@@ -206,6 +206,8 @@
 
       // Check server connection and load model info
       async function checkConnection() {
+        console.log("Checking connection to:", `${API_BASE_URL}/health`);
+
         const statusElement = document.getElementById("status");
         const sendButton = document.getElementById("send-button");
 
@@ -229,15 +231,15 @@
             sendButton.disabled = true;
 
             // Check again in 5 seconds
-            setTimeout(checkConnection, 5000);
+            setTimeout(checkConnection, 10000);
           }
         } catch (error) {
           statusElement.className = "status disconnected";
-          statusElement.textContent = `Server connection error: ${error.message}. Retrying in 5 seconds...`;
+          statusElement.textContent = `Server connection error: ${error.message}. Retrying in 10 seconds...`;
           sendButton.disabled = true;
 
           // Try again in 5 seconds
-          setTimeout(checkConnection, 5000);
+          setTimeout(checkConnection, 10000);
         }
       }
 
