@@ -3,6 +3,7 @@ import torch
 from typing import Dict, Any, Optional, Tuple, List, Union
 from transformers import Qwen2_5OmniProcessor, Qwen2TokenizerFast
 from transformers import Qwen2_5OmniModel
+from qwen_omni_utils import process_mm_info
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class QwenOmniWrapper:
             # Load model with audio output if enabled
             self.model = Qwen2_5OmniModel.from_pretrained(
                 model_name,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                torch_dtype="auto",
                 device_map="auto" if device == "cuda" else None,
                 attn_implementation="flash_attention_2",
             )
@@ -91,15 +92,41 @@ class QwenOmniWrapper:
         """
         if not self.is_ready:
             raise RuntimeError("Model is not ready for inference")
+
+        conversation = [
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": input_text}],
+            },
+        ]
+
+        if images:
+            for image_path in images:
+                conversation[1]["content"].append({"type": "image", "image": image_path})
+
+        if videos:
+            for video_path in videos:
+                conversation[1]["content"].append({"type": "video", "video": video_path})
+
+        if audios:
+            for audio_path in audios:
+                conversation[1]["content"].append({"type": "audio", "audio": audio_path})
+
+        text = self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
         
         # Process inputs with the processor
         inputs = self.processor(
-            text=input_text,
+            text=text,
             images=images,
             videos=videos,
             audios=audios,
             return_tensors="pt",
-            padding=True
+            padding=True,
+            use_audio_in_video=False
         ).to(self.device)
         
         # Set return_audio based on parameters or defaults

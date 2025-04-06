@@ -26,6 +26,7 @@ class InferenceRequest(BaseModel):
     speaker: Optional[str] = "Ethan"  # Default speaker
     return_audio: Optional[bool] = True
     max_new_tokens: Optional[int] = 1024
+    system_prompt: Optional[str] = "You are a helpful assistant."
 
 async def save_uploaded_file(file: UploadFile) -> str:
     """Save an uploaded file to the uploads directory and return the file path"""
@@ -54,7 +55,8 @@ async def inference_endpoint(
             input_text=request.input_text,
             speaker=request.speaker,
             return_audio=request.return_audio,
-            max_new_tokens=request.max_new_tokens
+            max_new_tokens=request.max_new_tokens,
+            system_prompt=request.system_prompt
         )
         
         return response
@@ -70,6 +72,7 @@ async def multimodal_inference_endpoint(
     speaker: Optional[str] = Form("Ethan"),
     return_audio: Optional[bool] = Form(True),
     max_new_tokens: Optional[int] = Form(1024),
+    system_prompt: Optional[str] = Form(None),
     images: List[UploadFile] = File(None),
     videos: List[UploadFile] = File(None),
     audios: List[UploadFile] = File(None),
@@ -120,7 +123,8 @@ async def multimodal_inference_endpoint(
             audios=audio_paths if audio_paths else None,
             speaker=speaker,
             return_audio=return_audio,
-            max_new_tokens=max_new_tokens
+            max_new_tokens=max_new_tokens,
+            system_prompt=system_prompt
         )
         
         return response

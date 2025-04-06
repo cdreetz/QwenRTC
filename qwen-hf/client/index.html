@@ -138,6 +138,11 @@
       <div id="input-section">
         <h3>Input</h3>
         <textarea
+          id="system-prompt"
+          placeholder="(Optional) You are a helpful assistant."
+          rows="3"
+        ></textarea>
+        <textarea
           id="text-input"
           placeholder="Enter your text prompt here..."
         ></textarea>
@@ -501,12 +506,16 @@
         const responseElement = document.getElementById("text-response");
         const audioResponse = document.getElementById("audio-response");
         const audioPlayer = document.getElementById("audio-player");
+        const systemPrompt = document
+          .getElementById("system-prompt")
+          .value.trim();
 
         const requestData = {
           input_text: text, // Changed from "text" to "input_text"
           speaker: speaker,
           return_audio: returnAudio,
           max_new_tokens: 1024,
+          system_prompt: systemPrompt || null,
         };
 
         const response = await fetch(API_ENDPOINTS.inference, {
