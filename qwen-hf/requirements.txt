@@ -9,3 +9,4 @@ aiortc
 websockets
 accelerate
 flash-attn
+qwen-omni-utils
