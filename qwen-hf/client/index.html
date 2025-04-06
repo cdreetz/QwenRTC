@@ -197,6 +197,12 @@
 
     <script>
       const API_BASE_URL = "http://100.100.147.56:80";
+      const API_ENDPOINTS = {
+        health: `${API_BASE_URL}/health`,
+        speakers: `${API_BASE_URL}/api/inference/speakers`,
+        inference: `${API_BASE_URL}/api/inference/`,
+        multimodal: `${API_BASE_URL}/api/inference/multimodal`,
+      };
       let modelInfo = null;
       let mediaFiles = {
         images: [],
@@ -204,16 +210,64 @@
         videos: [],
       };
 
+      async function loadModelInfo() {
+        try {
+          // Change this to use the speakers endpoint since we don't have a dedicated model/info endpoint
+          const response = await fetch(API_ENDPOINTS.speakers);
+          const speakersData = await response.json();
+
+          // Create a basic model info object with the available data
+          modelInfo = {
+            available_speakers: speakersData.speakers || [],
+            audio_output_enabled: true, // This is always true based on your implementation
+          };
+
+          // Display model info
+          const modelInfoElement = document.getElementById("model-info");
+          const modelInfoJson = document.getElementById("model-info-json");
+          modelInfoElement.style.display = "block";
+          modelInfoJson.textContent = JSON.stringify(modelInfo, null, 2);
+
+          // Populate speaker dropdown
+          const speakerSelect = document.getElementById("speaker-select");
+          speakerSelect.innerHTML = "";
+
+          if (
+            modelInfo.available_speakers &&
+            modelInfo.available_speakers.length > 0
+          ) {
+            modelInfo.available_speakers.forEach((speaker) => {
+              const option = document.createElement("option");
+              option.value = speaker;
+              option.textContent = speaker;
+              speakerSelect.appendChild(option);
+            });
+          } else {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No speakers available";
+            speakerSelect.appendChild(option);
+          }
+
+          // Set audio output checkbox
+          const audioOutputCheckbox = document.getElementById("audio-output");
+          audioOutputCheckbox.checked = modelInfo.audio_output_enabled;
+          audioOutputCheckbox.disabled = !modelInfo.audio_output_enabled;
+        } catch (error) {
+          console.error("Error loading speakers:", error);
+        }
+      }
+
       // Check server connection and load model info
       async function checkConnection() {
-        console.log("Checking connection to:", `${API_BASE_URL}/health`);
+        console.log("Checking connection to:", API_ENDPOINTS.health);
 
         const statusElement = document.getElementById("status");
         const sendButton = document.getElementById("send-button");
 
         try {
           // Check health endpoint
-          const healthResponse = await fetch(`${API_BASE_URL}/health`);
+          const healthResponse = await fetch(API_ENDPOINTS.health);
           const healthData = await healthResponse.json();
 
           if (healthData.status === "healthy" && healthData.model_loaded) {
@@ -222,7 +276,7 @@
               "Connected to server. Model loaded successfully.";
             sendButton.disabled = false;
 
-            // Get model info
+            // Get speakers for model info
             await loadModelInfo();
           } else {
             statusElement.className = "status loading";
@@ -230,7 +284,7 @@
               "Server is up, but model is still loading...";
             sendButton.disabled = true;
 
-            // Check again in 5 seconds
+            // Check again in 10 seconds
             setTimeout(checkConnection, 10000);
           }
         } catch (error) {
@@ -238,7 +292,7 @@
           statusElement.textContent = `Server connection error: ${error.message}. Retrying in 10 seconds...`;
           sendButton.disabled = true;
 
-          // Try again in 5 seconds
+          // Try again in 10 seconds
           setTimeout(checkConnection, 10000);
         }
       }
@@ -246,7 +300,7 @@
       // Load model information
       async function loadModelInfo() {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/model/info`);
+          const response = await fetch(`${API_BASE_URL}/model/info`);
           modelInfo = await response.json();
 
           // Display model info
@@ -449,13 +503,13 @@
         const audioPlayer = document.getElementById("audio-player");
 
         const requestData = {
-          text: text,
+          input_text: text, // Changed from "text" to "input_text"
           speaker: speaker,
           return_audio: returnAudio,
           max_new_tokens: 1024,
         };
 
-        const response = await fetch(`${API_BASE_URL}/api/inference/text`, {
+        const response = await fetch(API_ENDPOINTS.inference, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -481,7 +535,7 @@
 
         // Create form data
         const formData = new FormData();
-        formData.append("text", text);
+        formData.append("input_text", text); // Changed from "text" to "input_text"
         if (speaker) formData.append("speaker", speaker);
         formData.append("return_audio", returnAudio);
         formData.append("max_new_tokens", 1024);
@@ -492,13 +546,10 @@
         mediaFiles.videos.forEach((file) => formData.append("videos", file));
 
         // Send request
-        const response = await fetch(
-          `${API_BASE_URL}/api/inference/multimodal`,
-          {
-            method: "POST",
-            body: formData,
-          },
-        );
+        const response = await fetch(API_ENDPOINTS.multimodal, {
+          method: "POST",
+          body: formData,
+        });
 
         if (!response.ok) {
           throw new Error(
@@ -512,25 +563,98 @@
 
       // Display response data
       function displayResponse(data, textElement, audioElement, audioPlayer) {
-        // Display text response
+        // Your API returns a different format than the client expects
+        // Display text response - text is a string in your API, not an array
         textElement.textContent = data.text || "No text response received.";
 
         // Handle audio response if available
-        if (data.has_audio && data.audio_base64) {
-          const audioSrc = `data:audio/wav;base64,${data.audio_base64}`;
-          audioPlayer.src = audioSrc;
-          audioElement.style.display = "block";
+        if (data.has_audio && data.audio_waveform) {
+          // Convert the audio waveform array to an audio buffer and then to a blob
+          const audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const audioBuffer = audioContext.createBuffer(
+            1,
+            data.audio_waveform.length,
+            data.audio_sample_rate || 24000,
+          );
+          const channelData = audioBuffer.getChannelData(0);
 
-          // Automatically play audio
-          audioPlayer.play().catch((error) => {
-            console.warn(
-              "Auto-play failed. This may be due to browser policies:",
-              error,
-            );
-          });
+          // Copy the waveform data to the audio buffer
+          for (let i = 0; i < data.audio_waveform.length; i++) {
+            channelData[i] = data.audio_waveform[i];
+          }
+
+          // Convert to WAV and create an object URL
+          audioBufferToWav(audioBuffer)
+            .then((wavBlob) => {
+              const audioUrl = URL.createObjectURL(wavBlob);
+              audioPlayer.src = audioUrl;
+              audioElement.style.display = "block";
+
+              // Automatically play audio
+              audioPlayer.play().catch((error) => {
+                console.warn(
+                  "Auto-play failed. This may be due to browser policies:",
+                  error,
+                );
+              });
+            })
+            .catch((error) => {
+              console.error("Error converting audio:", error);
+              audioElement.style.display = "none";
+            });
         } else {
           audioElement.style.display = "none";
           audioPlayer.src = "";
+        }
+      }
+      async function audioBufferToWav(audioBuffer) {
+        const numberOfChannels = audioBuffer.numberOfChannels;
+        const length = audioBuffer.length * numberOfChannels * 2;
+        const buffer = new ArrayBuffer(44 + length);
+        const view = new DataView(buffer);
+        const sampleRate = audioBuffer.sampleRate;
+
+        // Write WAV header
+        writeString(view, 0, "RIFF");
+        view.setUint32(4, 36 + length, true);
+        writeString(view, 8, "WAVE");
+        writeString(view, 12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numberOfChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+        view.setUint16(32, numberOfChannels * 2, true);
+        view.setUint16(34, 16, true);
+        writeString(view, 36, "data");
+        view.setUint32(40, length, true);
+
+        // Write audio data
+        const channelData = [];
+        for (let i = 0; i < numberOfChannels; i++) {
+          channelData.push(audioBuffer.getChannelData(i));
+        }
+
+        let offset = 44;
+        for (let i = 0; i < audioBuffer.length; i++) {
+          for (let channel = 0; channel < numberOfChannels; channel++) {
+            const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+            view.setInt16(
+              offset,
+              sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+              true,
+            );
+            offset += 2;
+          }
+        }
+
+        return new Blob([buffer], { type: "audio/wav" });
+      }
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
         }
       }
 
