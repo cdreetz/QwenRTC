@@ -32,15 +32,16 @@ app.add_middleware(
 async def startup_event():
     try:
         logger.info("Initializing Qwen 2.5 Omni model...")
-        from app.dependencies import model_instance as deps_model_instance
-        global model_instance
-
-        new_model = QwenOmniWrapper()
-        globals()['model_instance'] = new_model
-
         import app.dependencies
+        global model_instance
+        
+        # Initialize the model
+        new_model = QwenOmniWrapper()
+        
+        # Update the global references
+        globals()['model_instance'] = new_model
         app.dependencies.model_instance = new_model
-
+        
         logger.info("Model initialization complete")
     except Exception as e:
         logger.error(f"Failed to initialize model: {str(e)}")
