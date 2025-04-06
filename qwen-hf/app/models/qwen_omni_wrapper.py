@@ -117,7 +117,15 @@ class QwenOmniWrapper:
             for audio_path in audios:
                 conversation[1]["content"].append({"type": "audio", "audio": audio_path})
 
+        USE_AUDIO_IN_VIDEO = True
+
+        print("conversation before processor:", conversation)
+
         text = self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
+        
+        print("text after processor:", text)
+
+        audios, images, videos = process_mm_info(conversation, use_audio_in_video=USE_AUDIO_IN_VIDEO)
         
         # Process inputs with the processor
         inputs = self.processor(
@@ -127,7 +135,7 @@ class QwenOmniWrapper:
             audios=audios,
             return_tensors="pt",
             padding=True,
-            use_audio_in_video=False
+            use_audio_in_video=USE_AUDIO_IN_VIDEO
         ).to(self.device)
         
         # Set return_audio based on parameters or defaults
@@ -147,7 +155,7 @@ class QwenOmniWrapper:
                     **inputs,
                     spk=speaker,
                     thinker_max_new_tokens=max_new_tokens,
-                    use_audio_in_video=False,  # Default to False for simplicity
+                    use_audio_in_video=USE_AUDIO_IN_VIDEO,  # Default to False for simplicity
                     return_audio=True
                 )
                 decoded_text = self.processor.batch_decode(generated_text, skip_special_tokens=True)
@@ -165,7 +173,8 @@ class QwenOmniWrapper:
                 generated_text = self.model.generate(
                     **inputs,
                     thinker_max_new_tokens=max_new_tokens,
-                    return_audio=False
+                    return_audio=False,
+                    use_audio_in_video=USE_AUDIO_IN_VIDEO
                 )
 
                 decoded_text = self.processor.batch_decode(generated_text, skip_special_tokens=True)
