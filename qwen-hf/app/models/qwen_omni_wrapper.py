@@ -164,7 +164,7 @@ class QwenOmniWrapper:
                 
                 # Convert tensors to Python-native types
                 response = {
-                    "text": text_response,
+                    "text": text_response.split("\n")[-1],
                     "has_audio": True,
                     "audio_sample_rate": 24000,  # Default sample rate for Qwen Omni
                     "audio_waveform": audio_waveform.detach().cpu().numpy().tolist()
@@ -178,10 +178,12 @@ class QwenOmniWrapper:
                 )
 
                 decoded_text = self.processor.batch_decode(generated_text, skip_special_tokens=True)
+                print("decoded text: ", decoded_text)
                 text_response = decoded_text[0] if isinstance(decoded_text, list) else decoded_text
+                print("text response: ", text_response)
                 
                 response = {
-                    "text": text_response,
+                    "text": text_response.split("\n")[-1],
                     "has_audio": False
                 }
                 

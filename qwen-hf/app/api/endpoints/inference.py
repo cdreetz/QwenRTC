@@ -56,7 +56,7 @@ async def inference_endpoint(
             speaker=request.speaker,
             return_audio=request.return_audio,
             max_new_tokens=request.max_new_tokens,
-            system_prompt=request.system_prompt
+            #system_prompt=request.system_prompt
         )
         
         return response
