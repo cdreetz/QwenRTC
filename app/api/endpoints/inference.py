@@ -147,7 +147,7 @@ async def multimodal_inference_endpoint(
         return response
         
     except Exception as e:
-        logger.error(f"Error during multimodal inference: {str(e)}")
+        logger.error(f"Error during multimodal inference: {str(e)}", exec_info=True)
         raise HTTPException(status_code=500, detail=f"Multimodal inference failed: {str(e)}")
 
 @router.get("/speakers")
