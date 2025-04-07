@@ -161,6 +161,10 @@
             <input type="file" id="video-upload" accept="video/*" multiple />
           </div>
         </div>
+        <div>
+          <button id="record-button" type="button">Record Audio</button>
+          <span id="recording-status"></span>
+        </div>
 
         <div class="media-preview" id="media-preview">
           <!-- Media previews will be added here -->
@@ -177,7 +181,9 @@
           <div>
             <label for="speaker-select">Speaker:</label>
             <select id="speaker-select">
-              <option value="">Loading speakers...</option>
+              <option value="Chelsie">Chelsie</option>
+              <option value="Ethan">Ethan</option>
+              <option value="Cherry">Cherry</option>
             </select>
           </div>
         </div>
@@ -214,54 +220,6 @@
         audios: [],
         videos: [],
       };
-
-      async function loadModelInfo() {
-        try {
-          // Change this to use the speakers endpoint since we don't have a dedicated model/info endpoint
-          const response = await fetch(API_ENDPOINTS.speakers);
-          const speakersData = await response.json();
-
-          // Create a basic model info object with the available data
-          modelInfo = {
-            available_speakers: speakersData.speakers || [],
-            audio_output_enabled: true, // This is always true based on your implementation
-          };
-
-          // Display model info
-          const modelInfoElement = document.getElementById("model-info");
-          const modelInfoJson = document.getElementById("model-info-json");
-          modelInfoElement.style.display = "block";
-          modelInfoJson.textContent = JSON.stringify(modelInfo, null, 2);
-
-          // Populate speaker dropdown
-          const speakerSelect = document.getElementById("speaker-select");
-          speakerSelect.innerHTML = "";
-
-          if (
-            modelInfo.available_speakers &&
-            modelInfo.available_speakers.length > 0
-          ) {
-            modelInfo.available_speakers.forEach((speaker) => {
-              const option = document.createElement("option");
-              option.value = speaker;
-              option.textContent = speaker;
-              speakerSelect.appendChild(option);
-            });
-          } else {
-            const option = document.createElement("option");
-            option.value = "";
-            option.textContent = "No speakers available";
-            speakerSelect.appendChild(option);
-          }
-
-          // Set audio output checkbox
-          const audioOutputCheckbox = document.getElementById("audio-output");
-          audioOutputCheckbox.checked = modelInfo.audio_output_enabled;
-          audioOutputCheckbox.disabled = !modelInfo.audio_output_enabled;
-        } catch (error) {
-          console.error("Error loading speakers:", error);
-        }
-      }
 
       // Check server connection and load model info
       async function checkConnection() {
@@ -318,27 +276,17 @@
           const speakerSelect = document.getElementById("speaker-select");
           speakerSelect.innerHTML = "";
 
-          if (
-            modelInfo.available_speakers &&
-            modelInfo.available_speakers.length > 0
-          ) {
-            modelInfo.available_speakers.forEach((speaker) => {
-              const option = document.createElement("option");
-              option.value = speaker;
-              option.textContent = speaker;
-              speakerSelect.appendChild(option);
-            });
-          } else {
+          const speakers = ["Chelsie", "Ethan", "Cherry"];
+          speakers.forEach((speaker) => {
             const option = document.createElement("option");
-            option.value = "";
-            option.textContent = "No speakers available";
+            option.value = speaker;
+            option.textContent = speaker;
             speakerSelect.appendChild(option);
-          }
+          });
 
           // Set audio output checkbox based on model
           const audioOutputCheckbox = document.getElementById("audio-output");
-          audioOutputCheckbox.checked = modelInfo.audio_output_enabled;
-          audioOutputCheckbox.disabled = !modelInfo.audio_output_enabled;
+          audioOutputCheckbox.checked = true;
         } catch (error) {
           console.error("Error loading model info:", error);
         }
@@ -446,7 +394,8 @@
         .getElementById("send-button")
         .addEventListener("click", async () => {
           const textInput = document.getElementById("text-input").value.trim();
-          const returnAudio = document.getElementById("audio-output").checked;
+          const returnAudio =
+            document.getElementById("audio-output").checked === true;
           const speaker = document.getElementById("speaker-select").value;
           const responseElement = document.getElementById("text-response");
           const audioResponse = document.getElementById("audio-response");
@@ -513,7 +462,7 @@
         const requestData = {
           input_text: text, // Changed from "text" to "input_text"
           speaker: speaker,
-          return_audio: returnAudio,
+          return_audio: returnAudio === true,
           max_new_tokens: 1024,
           system_prompt: systemPrompt || null,
         };
@@ -545,8 +494,11 @@
         // Create form data
         const formData = new FormData();
         formData.append("input_text", text); // Changed from "text" to "input_text"
-        if (speaker) formData.append("speaker", speaker);
-        formData.append("return_audio", returnAudio);
+        formData.append("speaker", speaker);
+        formData.append(
+          "return_audio",
+          returnAudio === true ? "true" : "false",
+        );
         formData.append("max_new_tokens", 1024);
         if (systemPrompt) formData.append("system_prompt", systemPrompt);
 
@@ -671,7 +623,102 @@
       // Initialize on page load
       window.addEventListener("load", () => {
         checkConnection();
+
+        document.getElementById("audio-output").checked = true;
       });
+
+      let medaiRecorder;
+      let audioChunks = [];
+      let isRecording = false;
+
+      document
+        .getElementById("record-button")
+        .addEventListener("click", toggleRecording);
+      async function toggleRecording() {
+        const recordButton = document.getElementById("record-button");
+        const recordingStatus = document.getElementById("recording-status");
+
+        if (!isRecording) {
+          // Start recording
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+            });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+              audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+              // Create audio file from recorded chunks
+              const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+              const audioFile = new File([audioBlob], "recorded_audio.wav", {
+                type: "audio/wav",
+              });
+
+              // Add to media files
+              mediaFiles.audios.push(audioFile);
+
+              // Create preview element
+              const previewContainer = document.createElement("div");
+              previewContainer.className = "preview-item";
+              previewContainer.dataset.type = "audios";
+              previewContainer.dataset.index = mediaFiles.audios.length - 1;
+
+              const audioElement = document.createElement("audio");
+              audioElement.src = URL.createObjectURL(audioFile);
+              audioElement.controls = true;
+              audioElement.style.width = "100%";
+              audioElement.style.height = "100%";
+              previewContainer.appendChild(audioElement);
+
+              // Add remove button
+              const removeButton = document.createElement("div");
+              removeButton.className = "remove";
+              removeButton.textContent = "×";
+              removeButton.addEventListener("click", () =>
+                removeMedia(previewContainer),
+              );
+              previewContainer.appendChild(removeButton);
+
+              // Add to preview area
+              document
+                .getElementById("media-preview")
+                .appendChild(previewContainer);
+
+              recordingStatus.textContent = "Recording saved";
+              setTimeout(() => {
+                recordingStatus.textContent = "";
+              }, 3000);
+            };
+
+            // Start recording
+            mediaRecorder.start();
+            isRecording = true;
+            recordButton.textContent = "⏹️ Stop Recording";
+            recordButton.classList.add("recording");
+            recordingStatus.textContent = "Recording... (click again to stop)";
+          } catch (error) {
+            console.error("Error accessing microphone:", error);
+            recordingStatus.textContent = `Error: ${error.message}`;
+          }
+        } else {
+          // Stop recording
+          if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+
+            // Stop all tracks in the stream
+            const tracks = mediaRecorder.stream.getTracks();
+            tracks.forEach((track) => track.stop());
+          }
+
+          isRecording = false;
+          recordButton.textContent = "Record";
+          recordButton.classList.remove("recording");
+        }
+      }
     </script>
   </body>
 </html>
