@@ -205,12 +205,12 @@
         </div>
         <div class="controls">
           <button id="send-button" disabled>Send</button>
-  
+
           <div class="toggle">
             <label for="audio-output">Audio Output:</label>
             <input type="checkbox" id="audio-output" checked />
           </div>
-  
+
           <div>
             <label for="speaker-select">Speaker:</label>
             <select id="speaker-select">
@@ -220,29 +220,62 @@
             </select>
           </div>
         </div>
-        
-        <div class="webrtc-section" style="margin-top: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+
+        <div
+          class="webrtc-section"
+          style="
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+          "
+        >
           <h3>Real-time Audio Streaming (WebRTC)</h3>
-          <div id="webrtc-status" class="status disconnected">Not connected</div>
-          
-          <div class="visualizer-container" style="width: 100%; height: 100px; margin: 20px 0; background-color: #f0f0f0; border-radius: 5px;">
+          <div id="webrtc-status" class="status disconnected">
+            Not connected
+          </div>
+
+          <div
+            class="visualizer-container"
+            style="
+              width: 100%;
+              height: 100px;
+              margin: 20px 0;
+              background-color: #f0f0f0;
+              border-radius: 5px;
+            "
+          >
             <canvas id="audio-visualizer" width="800" height="100"></canvas>
           </div>
-          
-          <div class="webrtc-controls" style="display: flex; gap: 10px; margin-bottom: 20px;">
+
+          <div
+            class="webrtc-controls"
+            style="display: flex; gap: 10px; margin-bottom: 20px"
+          >
             <button id="webrtc-start-button">Start Streaming</button>
             <button id="webrtc-stop-button" disabled>Stop Streaming</button>
           </div>
-          
-          <div id="webrtc-responses" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
-            <div style="color: #666; font-style: italic;">Real-time inference results will appear here...</div>
+
+          <div
+            id="webrtc-responses"
+            style="
+              max-height: 300px;
+              overflow-y: auto;
+              border: 1px solid #ddd;
+              padding: 10px;
+              border-radius: 5px;
+            "
+          >
+            <div style="color: #666; font-style: italic">
+              Real-time inference results will appear here...
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <script>
-      const API_BASE_URL = "http://100.100.147.56:80";
+      const API_BASE_URL = "http://100.88.244.124:80";
       const API_ENDPOINTS = {
         health: `${API_BASE_URL}/health`,
         speakers: `${API_BASE_URL}/api/inference/speakers`,
@@ -526,6 +559,10 @@
         const audioResponse = document.getElementById("audio-response");
         const audioPlayer = document.getElementById("audio-player");
 
+        const systemPrompt = document
+          .getElementById("system-prompt")
+          .value.trim();
+
         // Create form data
         const formData = new FormData();
         formData.append("input_text", text); // Changed from "text" to "input_text"
@@ -662,7 +699,7 @@
         document.getElementById("audio-output").checked = true;
       });
 
-      let medaiRecorder;
+      let mediaRecorder;
       let audioChunks = [];
       let isRecording = false;
 
@@ -766,12 +803,13 @@
       let webrtcIsListening = false;
 
       // DOM Elements
-      const webrtcStartButton = document.getElementById('webrtc-start-button');
-      const webrtcStopButton = document.getElementById('webrtc-stop-button');
-      const webrtcStatusElement = document.getElementById('webrtc-status');
-      const webrtcResponsesElement = document.getElementById('webrtc-responses');
-      const visualizerCanvas = document.getElementById('audio-visualizer');
-      const canvasCtx = visualizerCanvas.getContext('2d');
+      const webrtcStartButton = document.getElementById("webrtc-start-button");
+      const webrtcStopButton = document.getElementById("webrtc-stop-button");
+      const webrtcStatusElement = document.getElementById("webrtc-status");
+      const webrtcResponsesElement =
+        document.getElementById("webrtc-responses");
+      const visualizerCanvas = document.getElementById("audio-visualizer");
+      const canvasCtx = visualizerCanvas.getContext("2d");
 
       // Update WebRTC connection status
       function updateWebRTCStatus(message, type) {
@@ -781,12 +819,12 @@
 
       // Add a response to the WebRTC responses container
       function addWebRTCResponse(text) {
-        const responseItem = document.createElement('div');
-        responseItem.style.padding = '10px';
-        responseItem.style.marginBottom = '10px';
-        responseItem.style.backgroundColor = '#f9f9f9';
-        responseItem.style.borderRadius = '5px';
-        responseItem.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        const responseItem = document.createElement("div");
+        responseItem.style.padding = "10px";
+        responseItem.style.marginBottom = "10px";
+        responseItem.style.backgroundColor = "#f9f9f9";
+        responseItem.style.borderRadius = "5px";
+        responseItem.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
         responseItem.textContent = text;
         webrtcResponsesElement.appendChild(responseItem);
         webrtcResponsesElement.scrollTop = webrtcResponsesElement.scrollHeight;
@@ -796,37 +834,38 @@
       function drawWebRTCVisualizer() {
         const WIDTH = visualizerCanvas.width;
         const HEIGHT = visualizerCanvas.height;
-        
-        webrtcVisualizerAnimationId = requestAnimationFrame(drawWebRTCVisualizer);
-        
+
+        webrtcVisualizerAnimationId =
+          requestAnimationFrame(drawWebRTCVisualizer);
+
         if (!webrtcAnalyser) return;
-        
+
         const bufferLength = webrtcAnalyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         webrtcAnalyser.getByteTimeDomainData(dataArray);
-        
-        canvasCtx.fillStyle = '#f0f0f0';
+
+        canvasCtx.fillStyle = "#f0f0f0";
         canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
         canvasCtx.lineWidth = 2;
-        canvasCtx.strokeStyle = '#007bff';
+        canvasCtx.strokeStyle = "#007bff";
         canvasCtx.beginPath();
-        
+
         const sliceWidth = WIDTH / bufferLength;
         let x = 0;
-        
+
         for (let i = 0; i < bufferLength; i++) {
           const v = dataArray[i] / 128.0;
-          const y = v * HEIGHT / 2;
-          
+          const y = (v * HEIGHT) / 2;
+
           if (i === 0) {
             canvasCtx.moveTo(x, y);
           } else {
             canvasCtx.lineTo(x, y);
           }
-          
+
           x += sliceWidth;
         }
-        
+
         canvasCtx.lineTo(WIDTH, HEIGHT / 2);
         canvasCtx.stroke();
       }
@@ -835,102 +874,108 @@
       async function startWebRTCStreaming() {
         try {
           // Reset the interface
-          updateWebRTCStatus('Requesting microphone access...', 'processing');
+          updateWebRTCStatus("Requesting microphone access...", "processing");
           webrtcStartButton.disabled = true;
-          webrtcResponsesElement.innerHTML = '<div style="color: #666; font-style: italic;">Real-time inference results will appear here...</div>';
-          
+          webrtcResponsesElement.innerHTML =
+            '<div style="color: #666; font-style: italic;">Real-time inference results will appear here...</div>';
+
           // Get audio stream
           webrtcLocalStream = await navigator.mediaDevices.getUserMedia({
             audio: {
               echoCancellation: true,
               noiseSuppression: true,
-              autoGainControl: true
+              autoGainControl: true,
             },
-            video: false
+            video: false,
           });
-          
-          console.log('Microphone access granted');
-          
+
+          console.log("Microphone access granted");
+
           // Set up audio context and analyser for visualization
-          webrtcAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-          const source = webrtcAudioContext.createMediaStreamSource(webrtcLocalStream);
+          webrtcAudioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const source =
+            webrtcAudioContext.createMediaStreamSource(webrtcLocalStream);
           webrtcAnalyser = webrtcAudioContext.createAnalyser();
           webrtcAnalyser.fftSize = 2048;
           source.connect(webrtcAnalyser);
-          
+
           // Start visualizer
           requestAnimationFrame(drawWebRTCVisualizer);
-          
+
           // Create peer connection
           webrtcPeerConnection = new RTCPeerConnection({
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' }
-            ]
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
           });
-          
+
           // Add stream to peer connection
-          webrtcLocalStream.getTracks().forEach(track => {
+          webrtcLocalStream.getTracks().forEach((track) => {
             webrtcPeerConnection.addTrack(track, webrtcLocalStream);
           });
-          
+
           // Handle ICE connection state changes
           webrtcPeerConnection.oniceconnectionstatechange = () => {
-            console.log(`ICE connection state: ${webrtcPeerConnection.iceConnectionState}`);
-            
-            if (webrtcPeerConnection.iceConnectionState === 'disconnected' ||
-                webrtcPeerConnection.iceConnectionState === 'failed' ||
-                webrtcPeerConnection.iceConnectionState === 'closed') {
+            console.log(
+              `ICE connection state: ${webrtcPeerConnection.iceConnectionState}`,
+            );
+
+            if (
+              webrtcPeerConnection.iceConnectionState === "disconnected" ||
+              webrtcPeerConnection.iceConnectionState === "failed" ||
+              webrtcPeerConnection.iceConnectionState === "closed"
+            ) {
               stopWebRTCStreaming();
             }
           };
-          
+
           // Create and set local description (offer)
           const offer = await webrtcPeerConnection.createOffer();
           await webrtcPeerConnection.setLocalDescription(offer);
-          console.log('Created offer');
-          
+          console.log("Created offer");
+
           // Send offer to server
-          updateWebRTCStatus('Connecting to server...', 'processing');
+          updateWebRTCStatus("Connecting to server...", "processing");
           const response = await fetch(`${API_BASE_URL}/api/webrtc/offer`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               sdp: {
                 sdp: webrtcPeerConnection.localDescription.sdp,
-                type: webrtcPeerConnection.localDescription.type
-              }
+                type: webrtcPeerConnection.localDescription.type,
+              },
             }),
           });
-          
+
           if (!response.ok) {
-            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            throw new Error(
+              `Server error: ${response.status} ${response.statusText}`,
+            );
           }
-          
+
           const data = await response.json();
           webrtcClientId = data.client_id;
-          
+
           console.log(`Received answer and client ID: ${webrtcClientId}`);
-          
+
           // Set remote description (answer)
           const remoteDesc = new RTCSessionDescription({
             sdp: data.sdp.sdp,
-            type: data.sdp.type
+            type: data.sdp.type,
           });
           await webrtcPeerConnection.setRemoteDescription(remoteDesc);
-          console.log('Set remote description');
-          
+          console.log("Set remote description");
+
           // Connect WebSocket for receiving results
           connectWebRTCWebSocket(webrtcClientId);
-          
+
           // Update UI
-          updateWebRTCStatus('Connected. Waiting for speech...', 'connected');
+          updateWebRTCStatus("Connected. Waiting for speech...", "connected");
           webrtcStopButton.disabled = false;
-          
         } catch (error) {
           console.error(`Error starting stream: ${error.message}`);
-          updateWebRTCStatus(`Error: ${error.message}`, 'disconnected');
+          updateWebRTCStatus(`Error: ${error.message}`, "disconnected");
           stopWebRTCStreaming();
           webrtcStartButton.disabled = false;
         }
@@ -939,50 +984,53 @@
       // Connect WebSocket for WebRTC
       function connectWebRTCWebSocket(clientId) {
         const protocol = window.location.protocol;
-        const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
         const wsUrl = `${wsProtocol}//${window.location.host}/api/webrtc/ws/${clientId}`;
-        
+
         webrtcWebsocket = new WebSocket(wsUrl);
-        
+
         webrtcWebsocket.onopen = () => {
-          console.log('WebRTC WebSocket connected');
+          console.log("WebRTC WebSocket connected");
         };
-        
+
         webrtcWebsocket.onmessage = (event) => {
           const message = JSON.parse(event.data);
-          console.log('WebRTC WebSocket message:', message);
-          
+          console.log("WebRTC WebSocket message:", message);
+
           switch (message.type) {
-            case 'status':
-              if (message.status === 'listening') {
-                updateWebRTCStatus('Listening...', 'listening');
+            case "status":
+              if (message.status === "listening") {
+                updateWebRTCStatus("Listening...", "listening");
                 webrtcIsListening = true;
-              } else if (message.status === 'processing') {
-                updateWebRTCStatus('Processing speech...', 'processing');
+              } else if (message.status === "processing") {
+                updateWebRTCStatus("Processing speech...", "processing");
               }
               break;
-            
-            case 'result':
-              updateWebRTCStatus('Connected. Waiting for speech...', 'connected');
+
+            case "result":
+              updateWebRTCStatus(
+                "Connected. Waiting for speech...",
+                "connected",
+              );
               if (message.result && message.result.text) {
                 addWebRTCResponse(message.result.text);
               }
               break;
-            
-            case 'error':
+
+            case "error":
               console.error(`WebRTC error: ${message.error}`);
-              updateWebRTCStatus(`Error: ${message.error}`, 'disconnected');
+              updateWebRTCStatus(`Error: ${message.error}`, "disconnected");
               break;
           }
         };
-        
+
         webrtcWebsocket.onclose = () => {
-          console.log('WebRTC WebSocket disconnected');
+          console.log("WebRTC WebSocket disconnected");
           webrtcWebsocket = null;
         };
-        
+
         webrtcWebsocket.onerror = (error) => {
-          console.error('WebRTC WebSocket error:', error);
+          console.error("WebRTC WebSocket error:", error);
         };
       }
 
@@ -992,59 +1040,63 @@
         if (webrtcPeerConnection) {
           webrtcPeerConnection.close();
           webrtcPeerConnection = null;
-          console.log('WebRTC peer connection closed');
+          console.log("WebRTC peer connection closed");
         }
-        
+
         // Stop all tracks in the stream
         if (webrtcLocalStream) {
-          webrtcLocalStream.getTracks().forEach(track => track.stop());
+          webrtcLocalStream.getTracks().forEach((track) => track.stop());
           webrtcLocalStream = null;
-          console.log('WebRTC local stream stopped');
+          console.log("WebRTC local stream stopped");
         }
-        
+
         // Close WebSocket
         if (webrtcWebsocket) {
           webrtcWebsocket.close();
           webrtcWebsocket = null;
-          console.log('WebRTC WebSocket closed');
+          console.log("WebRTC WebSocket closed");
         }
-        
+
         // Stop audio context
         if (webrtcAudioContext) {
           webrtcAudioContext.close();
           webrtcAudioContext = null;
           webrtcAnalyser = null;
-          console.log('WebRTC audio context closed');
+          console.log("WebRTC audio context closed");
         }
-        
+
         // Cancel visualizer animation
         if (webrtcVisualizerAnimationId) {
           cancelAnimationFrame(webrtcVisualizerAnimationId);
           webrtcVisualizerAnimationId = null;
         }
-        
+
         // Reset canvas
         if (canvasCtx) {
-          canvasCtx.fillStyle = '#f0f0f0';
-          canvasCtx.fillRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+          canvasCtx.fillStyle = "#f0f0f0";
+          canvasCtx.fillRect(
+            0,
+            0,
+            visualizerCanvas.width,
+            visualizerCanvas.height,
+          );
         }
-        
+
         // Update UI
-        updateWebRTCStatus('Disconnected', 'disconnected');
+        updateWebRTCStatus("Disconnected", "disconnected");
         webrtcStartButton.disabled = false;
         webrtcStopButton.disabled = true;
         webrtcIsListening = false;
       }
 
       // Event listeners for WebRTC buttons
-      webrtcStartButton.addEventListener('click', startWebRTCStreaming);
-      webrtcStopButton.addEventListener('click', stopWebRTCStreaming);
+      webrtcStartButton.addEventListener("click", startWebRTCStreaming);
+      webrtcStopButton.addEventListener("click", stopWebRTCStreaming);
 
       // Clean up WebRTC resources when page unloads
-      window.addEventListener('beforeunload', () => {
+      window.addEventListener("beforeunload", () => {
         stopWebRTCStreaming();
       });
-
     </script>
   </body>
 </html>

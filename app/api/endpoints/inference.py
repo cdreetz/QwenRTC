@@ -73,9 +73,9 @@ async def multimodal_inference_endpoint(
     return_audio: Optional[bool] = Form(True),
     max_new_tokens: Optional[int] = Form(1024),
     system_prompt: Optional[str] = Form(None),
-    images: List[UploadFile] = File(None),
-    videos: List[UploadFile] = File(None),
-    audios: List[UploadFile] = File(None),
+    images: List[UploadFile] = File([]),
+    videos: List[UploadFile] = File([]),
+    audios: List[UploadFile] = File([]),
     model=Depends(get_model_instance)
 ):
     """Generate a response from the Qwen 2.5 Omni model with multimodal inputs"""
@@ -114,6 +114,23 @@ async def multimodal_inference_endpoint(
                     audio_paths.append(audio_path)
                     # Clean up file after response is sent
                     background_tasks.add_task(os.remove, audio_path)
+
+        if system_prompt is None:
+            # Check model type to provide appropriate default system prompt
+            if hasattr(model, 'model_name') and 'qwen' in model.model_name.lower():
+                system_prompt = "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech."
+            elif hasattr(model, 'model_name') and 'phi' in model.model_name.lower():
+                system_prompt = "You are Phi-4, a helpful AI assistant that can understand images and audio."
+            else:
+                system_prompt = "You are a helpful AI assistant that can understand multimodal inputs."
+        
+        logger.info(f"Using system prompt: {system_prompt}")
+        
+        # Debug logging
+        logger.info(f"Input text: {input_text}")
+        logger.info(f"Audio paths: {audio_paths}")
+        logger.info(f"Image paths: {image_paths}")
+        logger.info(f"Video paths: {video_paths}")
         
         # Generate response
         response = await model.generate_response(
