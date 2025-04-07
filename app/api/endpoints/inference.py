@@ -17,7 +17,7 @@ router = APIRouter()
 
 class InferenceResponse(BaseModel):
     text: Union[str, List[str]]
-    has_audio: bool
+    has_audio: Optional[bool] = None
     audio_sample_rate: Optional[int] = None
     audio_waveform: Optional[List[float]] = None
     

@@ -12,3 +12,5 @@ accelerate
 flash-attn
 qwen-omni-utils
 
+peft
+backoff
