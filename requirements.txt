@@ -1,16 +1,14 @@
-# Server and client shared dependencies
-fastapi==0.104.1
-uvicorn==0.23.2
-aiortc==1.5.0
-websockets==11.0.3
-numpy==1.24.3
-av==10.0.0
+fastapi
+uvicorn
+pydantic
+git+https://github.com/huggingface/transformers@f742a644ca32e65758c3adb36225aef1731bd2a8
+torch
+numpy
+python-multipart
+aiortc
+webrtcvad
+websockets
+accelerate
+flash-attn
+qwen-omni-utils
 
-# Server-specific dependencies
-torch>=2.0.0
-transformers==4.36.0
-accelerate==0.23.0
-flash-attn==2.4.2
-
-# Client-specific dependencies
-pyaudio==0.2.13
