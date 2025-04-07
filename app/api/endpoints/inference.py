@@ -30,6 +30,9 @@ class InferenceRequest(BaseModel):
 
 async def save_uploaded_file(file: UploadFile) -> str:
     """Save an uploaded file to the uploads directory and return the file path"""
+    if not file or not file.filename:
+        return None
+
     filename = f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}"
     file_path = os.path.join(UPLOAD_DIR, filename)
     
@@ -39,6 +42,51 @@ async def save_uploaded_file(file: UploadFile) -> str:
         f.write(content)
     
     return file_path
+
+def convert_audio_to_wav(input_path: str) -> str:
+    """
+    Convert audio file to a standard WAV format that librosa can read
+    Uses ffmpeg to ensure proper conversion
+    """
+    try:
+        # Create a new filename with proper extension for the converted file
+        output_filename = f"{uuid.uuid4()}.wav"
+        output_path = os.path.join(UPLOAD_DIR, output_filename)
+        
+        # Use ffmpeg to convert the audio file to standard WAV format with PCM encoding
+        # -y: Overwrite output file if it exists
+        # -i: Input file
+        # -acodec pcm_s16le: Convert to 16-bit PCM WAV
+        # -ar 16000: Set sample rate to 16000 Hz (model requirement)
+        # -ac 1: Convert to mono (single channel)
+        command = [
+            "ffmpeg", "-y", 
+            "-i", input_path, 
+            "-acodec", "pcm_s16le", 
+            "-ar", "16000", 
+            "-ac", "1", 
+            output_path
+        ]
+        
+        # Run the conversion command
+        subprocess.run(command, check=True, capture_output=True)
+        
+        # Check if the output file exists and has content
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            logger.info(f"Successfully converted audio file to WAV: {output_path}")
+            return output_path
+        else:
+            logger.error(f"Conversion failed: Output file {output_path} is empty or doesn't exist")
+            return None
+    except subprocess.CalledProcessError as e:
+        logger.error(f"FFmpeg conversion error: {e.stderr.decode() if e.stderr else str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Error converting audio: {str(e)}", exc_info=True)
+        return None
+
+
+
 
 @router.post("/", response_model=InferenceResponse)
 async def inference_endpoint(
@@ -65,6 +113,8 @@ async def inference_endpoint(
         logger.error(f"Error during inference: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Inference failed: {str(e)}")
 
+
+
 @router.post("/multimodal", response_model=InferenceResponse)
 async def multimodal_inference_endpoint(
     background_tasks: BackgroundTasks,
@@ -79,6 +129,9 @@ async def multimodal_inference_endpoint(
     model=Depends(get_model_instance)
 ):
     """Generate a response from the Qwen 2.5 Omni model with multimodal inputs"""
+    files_to_cleanup = []
+
+
     try:
         if not model.is_ready:
             raise HTTPException(status_code=503, detail="Model is not ready for inference")
@@ -93,27 +146,41 @@ async def multimodal_inference_endpoint(
             for image in images:
                 if image.filename:
                     image_path = await save_uploaded_file(image)
-                    image_paths.append(image_path)
-                    # Clean up file after response is sent
-                    background_tasks.add_task(os.remove, image_path)
+                    if image_path:
+                        image_paths.append(image_path)
+                        files_to_cleanup.append(image_path)
         
         # Save video files
         if videos:
             for video in videos:
                 if video.filename:
                     video_path = await save_uploaded_file(video)
-                    video_paths.append(video_path)
-                    # Clean up file after response is sent
-                    background_tasks.add_task(os.remove, video_path)
+                    if vide_path:
+                        video_paths.append(video_path)
+                        files_to_cleanup.append(video_path)
         
         # Save audio files
         if audios:
             for audio in audios:
-                if audio.filename:
-                    audio_path = await save_uploaded_file(audio)
-                    audio_paths.append(audio_path)
-                    # Clean up file after response is sent
-                    background_tasks.add_task(os.remove, audio_path)
+                if audio and audio.filename:
+                    try:
+                        original_path = await save_uploaded_file(audio)
+                        if original_path:
+                            files_to_cleanup.append(original_path)
+
+                            converted_path = convert_audio_to_wav(original_path)
+                            if converted_path:
+                                audio_paths.append(converted_path)
+                                files_to_cleanup.append(converted_path)
+                                logger.info(f"Successfully processed audio file: {converted_path}")
+                            else:
+                                logger.warning(f"Could not convert audio file: {original_path}")
+                    except Exception as audio_error:
+                        logger.error(f"Error processing audio file: {str(audio_error)}", exc_info=True)
+
+        for file_path in files_to_cleanup:
+            background_tasks.add_task(os.remove, file_path)
+
 
         if system_prompt is None:
             # Check model type to provide appropriate default system prompt
