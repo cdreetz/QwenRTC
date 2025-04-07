@@ -6,6 +6,17 @@
 
 `sudo docker-compose up --build`
 
+```
+# first change the const API_BASE in index.html to the address of the running server
+cd client
+python -m http.server
+```
+
+#### Models
+
+The default model is Qwen 2.5 Omni but you can also use Phi-4-multimodal with
+`MODEL_TYPE=phi docker-compose up --build`
+
 #### Tailscale
 
 Initially to enable connecting to my GPU instance I was using Nginx, which is why docker is configured with it.

@@ -10,6 +10,9 @@ services:
       - model-cache:/root/.cache/huggingface
     environment:
       - CUDA_VISIBLE_DEVICES=0
+      - MODEL_TYPE=${MODEL_TYPE:-qwen}
+      - QWEN_MODEL_NAME=${QWEN_MODEL_NAME:-Qwen/Qwen2.5-Omni-7B}
+      - Phi_MODEL_NAME=${PHI_MODEL_NAME:-microsoft/Phi-4-multimodal-instruct}
     deploy:
       resources:
         reservations:

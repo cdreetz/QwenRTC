@@ -1,9 +1,10 @@
+import os
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import router
 from app.models.qwen_omni_wrapper import QwenOmniWrapper
-from app.dependencies import model_instance
+from app.dependencies import model_instance, initialize_model
 
 # Configure logging
 logging.basicConfig(
@@ -11,6 +12,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+DEFAULT_MODEL_TYPE = os.getenv("MODEL_TYPE", "qwen")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -31,18 +34,13 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     try:
-        logger.info("Initializing Qwen 2.5 Omni model...")
-        import app.dependencies
-        global model_instance
+        model_type = DEFAULT_MODEL_TYPE
+        logger.info("Initializing {model_type} model...")
         
         # Initialize the model
-        new_model = QwenOmniWrapper()
+        initialize_model(model_type)
         
-        # Update the global references
-        globals()['model_instance'] = new_model
-        app.dependencies.model_instance = new_model
-        
-        logger.info("Model initialization complete")
+        logger.info("Model initialization complete {model_type}")
     except Exception as e:
         logger.error(f"Failed to initialize model: {str(e)}")
         raise RuntimeError(f"Model initialization failed: {str(e)}")
