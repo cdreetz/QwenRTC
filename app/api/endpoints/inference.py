@@ -131,23 +131,34 @@ async def multimodal_inference_endpoint(
         logger.info(f"Audio paths: {audio_paths}")
         logger.info(f"Image paths: {image_paths}")
         logger.info(f"Video paths: {video_paths}")
+
+        processed_audio_paths = []
+        for path in audio_paths:
+            try:
+                processed_audio_paths.append(path)
+            except Exception as audio_error:
+                logger.error(f"Error preprocessing audio file {path}: {str(audio_error)}", exc_info=True)
         
         # Generate response
-        response = await model.generate_response(
-            input_text=input_text,
-            images=image_paths if image_paths else None,
-            videos=video_paths if video_paths else None,
-            audios=audio_paths if audio_paths else None,
-            speaker=speaker,
-            return_audio=return_audio,
-            max_new_tokens=max_new_tokens,
-            system_prompt=system_prompt
-        )
+        try:
+            response = await model.generate_response(
+                input_text=input_text,
+                images=image_paths if image_paths else None,
+                videos=video_paths if video_paths else None,
+                audios=audio_paths if audio_paths else None,
+                speaker=speaker,
+                return_audio=return_audio,
+                max_new_tokens=max_new_tokens,
+                system_prompt=system_prompt
+            )
         
-        return response
+            return response
+        except Exception as model_error:
+            logger.error(f"Model generation error: {str(model_error)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Model generation failed: {str(model_error)}")
         
     except Exception as e:
-        logger.error(f"Error during multimodal inference: {str(e)}", exec_info=True)
+        logger.error(f"Error during multimodal inference: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Multimodal inference failed: {str(e)}")
 
 @router.get("/speakers")
