@@ -156,7 +156,7 @@ async def multimodal_inference_endpoint(
             for video in videos:
                 if video.filename:
                     video_path = await save_uploaded_file(video)
-                    if vide_path:
+                    if video_path:
                         video_paths.append(video_path)
                         files_to_cleanup.append(video_path)
         

@@ -148,13 +148,16 @@ class QwenOmniWrapper:
                             audio_tensor = audio_tensor.to(dtype=self.model_dtype)
 
                         audio_tensor = audio_tensor.to(self.device)
-                        audios.append(audio_tensor)
+                        processed_audios.append(audio_tensor)
                     elif isinstance(audio, torch.Tensor):
                         if hasattr(self, 'model_dtype') and audio.dtype != self.model_dtype:
                             audio = audio.to(dtype=self.model_dtype)
 
                         audio = audio.to(self.device)
-                        audios.append(audio)
+                        processed_audios.append(audio)
+
+                audios = processed_audios
+
             else:
                 audios = []
 
@@ -220,11 +223,18 @@ class QwenOmniWrapper:
 
                 decoded_text = self.processor.batch_decode(generated_text, skip_special_tokens=True)
                 print("decoded text: ", decoded_text)
-                text_response = decoded_text[0] if isinstance(decoded_text, list) else decoded_text
-                print("text response: ", text_response)
+
+                if isinstance(decoded_text, list):
+                    text_response = decoded_text[0] if decoded_text else ""
+                else:
+                    text_response = decoded_text
+
+                print("text response: ",text_response)
+
+                final_text = text_response.split("\n")[-1] if isinstance(text_response, str) and "\n" in text_response else text_response
                 
                 response = {
-                    "text": text_response.split("\n")[-1],
+                    "text": final_text,
                     "has_audio": False
                 }
                 
