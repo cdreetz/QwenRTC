@@ -50,9 +50,10 @@ class QwenOmniWrapper:
             self.processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
             
             # Load model with audio output if enabled
+            torch_dtype = torch.bfloat16 if use_bf16 else torch.float16
             self.model = Qwen2_5OmniModel.from_pretrained(
                 model_name,
-                torch_dtype="auto",
+                torch_dtype=torch_dtype,
                 device_map="auto" if device == "cuda" else None,
                 attn_implementation="flash_attention_2",
             )
@@ -130,48 +131,9 @@ class QwenOmniWrapper:
 
         USE_AUDIO_IN_VIDEO = True
 
-        print("conversation before processor:", conversation)
-
         text = self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
+        audios, images, videos = process_mm_info(conversation, use_audio_in_video=USE_AUDIO_IN_VIDEO)
         
-        print("text after processor:", text)
-
-        try:
-            audios, images, videos = process_mm_info(conversation, use_audio_in_video=USE_AUDIO_IN_VIDEO)
-
-            #if audios and len(audios) > 0:
-            #    processed_audios = []
-            #    for audio in audios:
-            #        if isinstance(audio, np.ndarray):
-            #            audio_tensor = torch.tensor(audio, dtype=torch.float32)
-            #            if hasattr(self, 'model_dtype'):
-            #                audio_tensor = audio_tensor.to(dtype=self.model_dtype)
-
-            #            audio_tensor = audio_tensor.to(self.device)
-            #            processed_audios.append(audio_tensor)
-            #        elif isinstance(audio, torch.Tensor):
-            #            if hasattr(self, 'model_dtype') and audio.dtype != self.model_dtype:
-            #                audio = audio.to(dtype=self.model_dtype)
-
-            #            audio = audio.to(self.device)
-            #            processed_audios.append(audio)
-
-            #    audios = processed_audios
-
-            #else:
-            #    audios = []
-
-            #if not audios or len(audios) == 0:
-            #    logger.warning("No valid audio data processed, running in text only mode")
-            #else:
-            #    logger.info(f"Successfully processed {len(audios)} audio files into tensors")
-
-        except Exception as e:
-            logger.error(f"Error processing multimodal inputs: {str(e)}", exc_info=True)
-            # fallback
-            audios, images, videos = [], [], []
-        
-        # Process inputs with the processor
         inputs = self.processor(
             text=text,
             images=images,

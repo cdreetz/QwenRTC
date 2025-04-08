@@ -83,12 +83,9 @@ class VADAudioTrack(MediaStreamTrack):
         
         # Resample if needed to 16kHz (VAD requirement)
         if frame.sample_rate != self.sample_rate:
-            resampled = np.interp(
-                np.linspace(0, len(audio_data) - 1, int(len(audio_data) * self.sample_rate / frame.sample_rate)),
-                np.arange(len(audio_data)),
-                audio_data
-            )
-            audio_data = resampled
+            from scipy import signal
+            num_samples = int(len(audio_data) * self.sample_rate / frame.sample_rate)
+            audio_data = signal.resample(audio_data, num_samples)
         
         # Convert to 16-bit PCM (VAD requirement)
         audio_samples = (audio_data * 32767).astype(np.int16)

@@ -1,8 +1,12 @@
 # app/api/endpoints/inference.py
 import os
-import subprocess
+import io
 import uuid
 import logging
+import subprocess
+import numpy as np
+import soundfile as sf
+from pydub import AudioSegment
 from typing import List, Optional, Union
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, UploadFile, File, Form
 from pydantic import BaseModel
@@ -86,7 +90,29 @@ def convert_audio_to_wav(input_path: str) -> str:
         logger.error(f"Error converting audio: {str(e)}", exc_info=True)
         return None
 
-
+def convert_audio_to_wav_pydub(input_path: str) -> str:
+    """
+    Convert audio file to a standard WAV format using pydub
+    """
+    try:
+        # Create a new filename for the converted file
+        output_filename = f"{uuid.uuid4()}.wav"
+        output_path = os.path.join(UPLOAD_DIR, output_filename)
+        
+        # Load audio file with pydub
+        audio = AudioSegment.from_file(input_path)
+        
+        # Convert to standard format (mono, 16kHz, 16-bit PCM)
+        audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+        
+        # Export to WAV
+        audio.export(output_path, format="wav")
+        
+        logger.info(f"Successfully converted audio file to WAV: {output_path}")
+        return output_path
+    except Exception as e:
+        logger.error(f"Error converting audio: {str(e)}", exc_info=True)
+        return None
 
 
 @router.post("/", response_model=InferenceResponse)
