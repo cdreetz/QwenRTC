@@ -6,6 +6,8 @@
 
 `sudo docker-compose up --build`
 
+#### Client UI
+
 ```
 # first change the const API_BASE in index.html to the address of the running server
 cd client
