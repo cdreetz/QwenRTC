@@ -139,32 +139,32 @@ class QwenOmniWrapper:
         try:
             audios, images, videos = process_mm_info(conversation, use_audio_in_video=USE_AUDIO_IN_VIDEO)
 
-            if audios and len(audios) > 0:
-                processed_audios = []
-                for audio in audios:
-                    if isinstance(audio, np.ndarray):
-                        audio_tensor = torch.tensor(audio, dtype=torch.float32)
-                        if hasattr(self, 'model_dtype'):
-                            audio_tensor = audio_tensor.to(dtype=self.model_dtype)
+            #if audios and len(audios) > 0:
+            #    processed_audios = []
+            #    for audio in audios:
+            #        if isinstance(audio, np.ndarray):
+            #            audio_tensor = torch.tensor(audio, dtype=torch.float32)
+            #            if hasattr(self, 'model_dtype'):
+            #                audio_tensor = audio_tensor.to(dtype=self.model_dtype)
 
-                        audio_tensor = audio_tensor.to(self.device)
-                        processed_audios.append(audio_tensor)
-                    elif isinstance(audio, torch.Tensor):
-                        if hasattr(self, 'model_dtype') and audio.dtype != self.model_dtype:
-                            audio = audio.to(dtype=self.model_dtype)
+            #            audio_tensor = audio_tensor.to(self.device)
+            #            processed_audios.append(audio_tensor)
+            #        elif isinstance(audio, torch.Tensor):
+            #            if hasattr(self, 'model_dtype') and audio.dtype != self.model_dtype:
+            #                audio = audio.to(dtype=self.model_dtype)
 
-                        audio = audio.to(self.device)
-                        processed_audios.append(audio)
+            #            audio = audio.to(self.device)
+            #            processed_audios.append(audio)
 
-                audios = processed_audios
+            #    audios = processed_audios
 
-            else:
-                audios = []
+            #else:
+            #    audios = []
 
-            if not audios or len(audios) == 0:
-                logger.warning("No valid audio data processed, running in text only mode")
-            else:
-                logger.info(f"Successfully processed {len(audios)} audio files into tensors")
+            #if not audios or len(audios) == 0:
+            #    logger.warning("No valid audio data processed, running in text only mode")
+            #else:
+            #    logger.info(f"Successfully processed {len(audios)} audio files into tensors")
 
         except Exception as e:
             logger.error(f"Error processing multimodal inputs: {str(e)}", exc_info=True)
@@ -180,7 +180,7 @@ class QwenOmniWrapper:
             return_tensors="pt",
             padding=True,
             use_audio_in_video=USE_AUDIO_IN_VIDEO
-        ).to(self.device)
+        ).to(self.device).to(self.model_dtype)
         
         # Set return_audio based on parameters or defaults
         if return_audio is None:
