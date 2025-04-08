@@ -1,5 +1,6 @@
 import logging
 import torch
+import numpy as np
 from typing import Dict, Any, Optional, Tuple, List, Union
 from transformers import Qwen2_5OmniProcessor, Qwen2TokenizerFast
 from transformers import Qwen2_5OmniModel
@@ -34,9 +35,19 @@ class QwenOmniWrapper:
         
         logger.info(f"Loading model {model_name} on {device}...")
         try:
-            # Initialize tokenizer and processor
+            use_bf16 = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
+
+            if use_bf16:
+                torch_dtype = torch.bfloat16
+                logger.info("Using bfloat16 precission for model loading")
+            else:
+                torch_dtype = torch.float16
+                logger.info("Using float16 precission for model loading")
+
+            self.model_dtype = torch_dtype
+
+            # Initialize  processor
             self.processor = Qwen2_5OmniProcessor.from_pretrained(model_name)
-            #self.tokenizer = Qwen2TokenizerFast.from_pretrained(model_name) 
             
             # Load model with audio output if enabled
             self.model = Qwen2_5OmniModel.from_pretrained(
@@ -125,7 +136,37 @@ class QwenOmniWrapper:
         
         print("text after processor:", text)
 
-        audios, images, videos = process_mm_info(conversation, use_audio_in_video=USE_AUDIO_IN_VIDEO)
+        try:
+            audios, images, videos = process_mm_info(conversation, use_audio_in_video=USE_AUDIO_IN_VIDEO)
+
+            if audios and len(audios) > 0:
+                processed_audios = []
+                for audio in audios:
+                    if isinstance(audio, np.ndarray):
+                        audio_tensor = torch.tensor(audio, dtype=torch.float32)
+                        if hasattr(self, 'model_dtype'):
+                            audio_tensor = audio_tensor.to(dtype=self.model_dtype)
+
+                        audio_tensor = audio_tensor.to(self.device)
+                        audios.append(audio_tensor)
+                    elif isinstance(audio, torch.Tensor):
+                        if hasattr(self, 'model_dtype') and audio.dtype != self.model_dtype:
+                            audio = audio.to(dtype=self.model_dtype)
+
+                        audio = audio.to(self.device)
+                        audios.append(audio)
+            else:
+                audios = []
+
+            if not audios or len(audios) == 0:
+                logger.warning("No valid audio data processed, running in text only mode")
+            else:
+                logger.info(f"Successfully processed {len(audios)} audio files into tensors")
+
+        except Exception as e:
+            logger.error(f"Error processing multimodal inputs: {str(e)}", exc_info=True)
+            # fallback
+            audios, images, videos = [], [], []
         
         # Process inputs with the processor
         inputs = self.processor(
